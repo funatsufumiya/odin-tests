@@ -7,39 +7,50 @@ package main
 // }
 
 import "core:fmt"
+import "base:runtime"
 import sapp "shared:sokol/app"
 import gfx "shared:sokol/gfx"
 import sgl "shared:sokol/gl"
 
 AppState :: struct {
-	pass_action: gfx.PassAction
+	pass_action: gfx.Pass_Action
 }
 
-main() :: proc() {
-	state := &AppState{
-		pass_action: gfx.create_clear_pass_action(0.1, 0.1, 0.1, 1.0)
+main :: proc() {
+	state := AppState{
+		pass_action = gfx.create_clear_pass_action(0.1, 0.1, 0.1, 1.0)
 	}
-	title := 'Sokol Drawing Template'
-	desc := sapp.Desc{
-		width:             640
-		height:            480
-		user_data:         state
-		init_userdata_cb:  init
-		frame_userdata_cb: frame
-		window_title:      &char(title.str)
-		html5_canvas_name: &char(title.str)
-	}
-	sapp.run(&desc)
+	title := "Sokol Drawing Template"
+
+	sapp.run({
+		width =             640,
+		height =            480,
+		user_data =         state,
+		init_userdata_cb =  init,
+		frame_userdata_cb = frame,
+		cleanup_cb =        cleanup,
+		window_title =      &char(title.str),
+		// html5_canvas_name = &char(title.str)
+	})
 }
 
-init :: proc(user_data: rawptr) {
-	desc := sapp.create_desc() // gfx.Desc{
+cleanup :: proc "c" () {
+    context = runtime.default_context()
+    gfx.shutdown()
+}
+
+init :: proc "c" (user_data: rawptr) {
+	context = runtime.default_context()
+
+	desc := sapp.create_desc()
 	gfx.setup(&desc)
 	sgl_desc := sgl.Desc{}
 	sgl.setup(&sgl_desc)
 }
 
-frame :: proc(state: &AppState) {
+frame :: proc "c" (state: ^AppState) {
+	context = runtime.default_context()
+
 	// println('frame')
 	draw()
 	pass := sapp.create_default_pass(state.pass_action)
@@ -49,7 +60,9 @@ frame :: proc(state: &AppState) {
 	gfx.commit()
 }
 
-draw :: proc() {
+draw :: proc "c" () {
+	context = runtime.default_context()
+
 	// first, reset and setup ortho projection
 	sgl.defaults()
 	sgl.matrix_mode_projection()
