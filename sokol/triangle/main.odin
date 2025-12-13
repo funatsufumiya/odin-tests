@@ -1,0 +1,113 @@
+// https://github.com/floooh/sokol-odin/blob/main/examples/triangle/main.odin
+/*
+
+zlib/libpng license
+
+Copyright (c) 2022 Andre Weissflog
+
+This software is provided 'as-is', without any express or implied warranty.
+In no event will the authors be held liable for any damages arising from the
+use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+    1. The origin of this software must not be misrepresented; you must not
+    claim that you wrote the original software. If you use this software in a
+    product, an acknowledgment in the product documentation would be
+    appreciated but is not required.
+
+    2. Altered source versions must be plainly marked as such, and must not
+    be misrepresented as being the original software.
+
+    3. This notice may not be removed or altered from any source
+    distribution.
+
+*/
+
+//------------------------------------------------------------------------------
+//  triangle/main.odin
+//
+//  Hello Triangle sample.
+//------------------------------------------------------------------------------
+package main
+
+import "base:runtime"
+import slog "shared:sokol/log"
+import sg "shared:sokol/gfx"
+import sapp "shared:sokol/app"
+import sglue "shared:sokol/glue"
+
+state: struct {
+    pip: sg.Pipeline,
+    bind: sg.Bindings,
+    pass_action: sg.Pass_Action,
+}
+
+init :: proc "c" () {
+    context = runtime.default_context()
+
+    sg.setup({
+        environment = sglue.environment(),
+        logger = { func = slog.func },
+    })
+
+    // a vertex buffer with 3 vertices
+    vertices := [?]f32 {
+        // positions         // colors
+         0.0,  0.5, 0.5,     1.0, 0.0, 0.0, 1.0,
+         0.5, -0.5, 0.5,     0.0, 1.0, 0.0, 1.0,
+        -0.5, -0.5, 0.5,     0.0, 0.0, 1.0, 1.0,
+    }
+    state.bind.vertex_buffers[0] = sg.make_buffer({
+        data = { ptr = &vertices, size = size_of(vertices) },
+    })
+
+    // create a shader and pipeline object (default render states are fine for triangle)
+    state.pip = sg.make_pipeline({
+        shader = sg.make_shader(triangle_shader_desc(sg.query_backend())),
+        layout = {
+            attrs = {
+                ATTR_triangle_position = { format = .FLOAT3 },
+                ATTR_triangle_color0 = { format = .FLOAT4 },
+            },
+        },
+    })
+
+    // a pass action to clear framebuffer to black
+    state.pass_action = {
+        colors = {
+            0 = { load_action = .CLEAR, clear_value = { r = 0, g = 0, b = 0, a = 1 }},
+        },
+    }
+}
+
+frame :: proc "c" () {
+    context = runtime.default_context()
+    sg.begin_pass({ action = state.pass_action, swapchain = sglue.swapchain() })
+    sg.apply_pipeline(state.pip)
+    sg.apply_bindings(state.bind)
+    sg.draw(0, 3, 1)
+    sg.end_pass()
+    sg.commit()
+
+}
+
+cleanup :: proc "c" () {
+    context = runtime.default_context()
+    sg.shutdown()
+}
+
+main :: proc() {
+    sapp.run({
+        init_cb = init,
+        frame_cb = frame,
+        cleanup_cb = cleanup,
+        width = 640,
+        height = 480,
+        window_title = "triangle",
+        icon = { sokol_default = true },
+        logger = { func = slog.func },
+    })
+}
